@@ -1,36 +1,24 @@
 """Abstraction des fournisseurs de LLM.
 
-Le reste d'E.V.A ne dépend que de ce module : `LLMProvider` et les types neutres.
+L'agent ne dépend que de ce module : `LLMProvider` et ses types.
 """
 
-from eva.llm.base import LLMError, LLMProvider, TextCallback
 from eva.llm.factory import create_provider
-from eva.llm.types import (
-    AssistantMessage,
+from eva.llm.provider import (
     Completion,
-    Message,
+    LLMError,
+    LLMProvider,
     StopReason,
-    ToolCall,
-    ToolEffect,
-    ToolResult,
-    ToolResultsMessage,
-    ToolSpec,
-    UserMessage,
+    TextCallback,
+    describe_tool,
 )
 
 __all__ = [
-    "AssistantMessage",
     "Completion",
     "LLMError",
     "LLMProvider",
-    "Message",
     "StopReason",
     "TextCallback",
-    "ToolCall",
-    "ToolEffect",
-    "ToolResult",
-    "ToolResultsMessage",
-    "ToolSpec",
-    "UserMessage",
     "create_provider",
+    "describe_tool",
 ]

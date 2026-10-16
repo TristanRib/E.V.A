@@ -1,43 +1,56 @@
-"""Configuration d'E.V.A, lue depuis l'environnement et le fichier `.env`."""
+"""Configuration, lue depuis l'environnement et le fichier `.env`.
+
+Chaque composant (cœur, fournisseur de LLM, plugin) déclare ses propres réglages en
+héritant de `EvaBaseSettings` : le cœur n'a pas à connaître ceux des plugins.
+"""
 
 from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Settings(BaseSettings):
+class EvaBaseSettings(BaseSettings):
+    """Base commune : lecture de `.env`, valeurs vides = non renseignées."""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         env_ignore_empty=True,  # `EVA_MODEL=` vaut « non renseigné », pas une chaîne vide
         extra="ignore",
+        # Sans cela, `OllamaSettings(context_size=…)` serait ignoré en silence : seul
+        # l'alias (`OLLAMA_CONTEXT_SIZE`) serait accepté.
+        validate_by_name=True,
     )
+
+
+class EvaSettings(EvaBaseSettings):
+    """Réglages du cœur d'E.V.A."""
 
     # --- LLM ---
     provider: str | None = Field(default=None, validation_alias="EVA_PROVIDER")
     model: str | None = Field(default=None, validation_alias="EVA_MODEL")
     """Modèle à utiliser ; à défaut, celui recommandé par le fournisseur."""
     max_tokens: int = Field(default=1024, gt=0, validation_alias="EVA_MAX_TOKENS")
-    context_size: int = Field(default=8192, ge=2048, validation_alias="EVA_CONTEXT_SIZE")
-    """Fenêtre de contexte, en tokens, pour les LLM locaux (plus grand = plus de VRAM)."""
-    keep_alive: str = Field(default="30m", validation_alias="EVA_KEEP_ALIVE")
-    """Durée de maintien du modèle local en VRAM après usage (`30m`, `2h`, `-1` = toujours)."""
 
     # --- Conversation ---
+    user_name: str = Field(default="Tristan", validation_alias="EVA_USER_NAME")
     history_turns: int = Field(default=20, gt=0, validation_alias="EVA_HISTORY_TURNS")
     """Nombre d'échanges conservés dans la conversation."""
+
+    # --- Plugins ---
+    plugins: str | None = Field(default=None, validation_alias="EVA_PLUGINS")
+    """Plugins activés, séparés par des virgules ; à défaut, tous."""
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(
         default="WARNING", validation_alias="EVA_LOG_LEVEL"
     )
 
-    # --- Ollama ---
-    ollama_host: str = Field(default="http://localhost:11434", validation_alias="OLLAMA_HOST")
-
-    # --- Philips Hue ---
-    hue_bridge_ip: str | None = Field(default=None, validation_alias="HUE_BRIDGE_IP")
-    hue_app_key: SecretStr | None = Field(default=None, validation_alias="HUE_APP_KEY")
+    @property
+    def enabled_plugins(self) -> frozenset[str] | None:
+        if self.plugins is None:
+            return None
+        return frozenset(name.strip() for name in self.plugins.split(",") if name.strip())
 
     @field_validator("log_level", mode="before")
     @classmethod

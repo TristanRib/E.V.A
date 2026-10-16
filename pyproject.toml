@@ -13,12 +13,13 @@ dependencies = [
 
 [project.scripts]
 eva = "eva.__main__:main"
-eva-hue-pair = "eva.tools.hue.pairing:main"
+eva-hue-pair = "eva.plugins.hue.pairing:main"
 
 [dependency-groups]
 dev = [
     "mypy>=1.13",
     "pytest>=8.3",
+    "pytest-asyncio>=1.4.0",
     "ruff>=0.8",
 ]
 
@@ -57,4 +58,6 @@ plugins = ["pydantic.mypy"]
 # --- Tests ------------------------------------------------------------------
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra"
+pythonpath = ["tests"]  # rend `fakes` (doublures de test partagées) importable
+addopts = "-ra --import-mode=importlib"
+asyncio_mode = "auto"
