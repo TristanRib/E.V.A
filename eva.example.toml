@@ -1,0 +1,35 @@
+# Configuration d'E.V.A : copier ce fichier en eva.toml puis l'adapter.
+# Les secrets (clés d'API, clés des bridges…) vont dans .env, jamais ici.
+# Toute valeur peut être surchargée par l'environnement : EVA_LOG_LEVEL=INFO, EVA_LLM__MODEL=…
+
+# Prénom utilisé par E.V.A pour s'adresser à vous
+user_name = "Tristan"
+# Nombre d'échanges conservés dans la conversation
+history_turns = 20
+# DEBUG, INFO (affiche les appels d'outils), WARNING, ERROR
+log_level = "WARNING"
+
+[llm]
+# Fournisseur de LLM : ollama
+provider = "ollama"
+# Modèle ; à défaut, celui recommandé par le fournisseur (qwen3:4b-instruct pour Ollama)
+model = "qwen3:4b-instruct"
+# Longueur maximale d'une réponse, en tokens
+max_tokens = 1024
+
+[llm.ollama]
+host = "http://localhost:11434"
+# Fenêtre de contexte en tokens : plus grand = mémoire plus longue, plus de VRAM
+context_size = 8192
+# Durée de maintien du modèle en VRAM après usage : "30m", "2h", "-1" (toujours)
+keep_alive = "30m"
+
+[plugins]
+# Plugins activés ; supprimer la ligne pour les activer tous
+enabled = ["clock", "hue"]
+
+# Une table par maison Hue. `uv run eva-hue-pair --name <Nom>` l'ajoute automatiquement,
+# avec sa clé dans .env (HUE_KEY_<NOM>).
+[[plugins.hue.homes]]
+name = "Maison"
+bridge_ip = "192.168.1.10"

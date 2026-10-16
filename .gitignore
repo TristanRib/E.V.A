@@ -21,6 +21,8 @@ htmlcov/
 .env
 .env.*
 !.env.example
+# Configuration personnelle (maisons, IP…) ; seul eva.example.toml est suivi.
+eva.toml
 
 # --- Données d'exécution d'E.V.A -------------------------------------------
 # Mémoire, historiques de conversation, journaux : propres à chaque machine.

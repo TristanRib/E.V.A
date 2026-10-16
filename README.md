@@ -11,6 +11,21 @@ grâce au *function calling*.
 
 ## Architecture
 
+Le cœur et chaque plugin suivent **la même architecture en couches, avec les mêmes noms** :
+un plugin est un E.V.A en miniature.
+
+| Couche | Cœur d'E.V.A | Plugin | Règle |
+|---|---|---|---|
+| Domaine | `domain/` | `domain.py` | Entités et règles pures ; n'importe rien du projet (sauf `eva.domain` pour un plugin) |
+| Configuration | `config.py` | `config.py` | Schéma de sa section d'`eva.toml` + noms de ses secrets |
+| Accès externe | `llm/` | `client.py` | Seul à connaître le format externe ; traduit externe ↔ domaine |
+| Application | `agent/` | `service.py` | Logique applicative, utilisable sans LLM |
+| Points d'entrée | `interfaces/` | `tools.py`, `cli.py` | Adaptateurs vers le LLM (outils) ou l'humain (commandes) |
+| Assemblage | `app.py` | `plugin.py` | Instancie et relie ; aucune logique |
+
+Les dépendances vont toujours dans le même sens : points d'entrée → application →
+accès externe → domaine.
+
 ```
             interfaces (terminal → web → vocal)
                           │  événements
@@ -20,52 +35,57 @@ grâce au *function calling*.
                    ▼    ▼
                  llm    plugins (clock, hue, …)
                    ╲    ╱
-                   domain  (messages, outils, erreurs : dépend de rien)
+                   domain  (messages, contrat Tool, erreurs)
 ```
-
-| Paquet            | Rôle                                                                        |
-|-------------------|-----------------------------------------------------------------------------|
-| `eva.domain`      | Noyau sans dépendance : messages, contrat `Tool`, erreurs                   |
-| `eva.llm`         | Contrat `LLMProvider` + une implémentation par fournisseur (`providers/`)   |
-| `eva.agent`       | `Agent` (boucle), `Conversation` (historique), `Toolbox` (exécution des outils), événements, prompt |
-| `eva.plugins`     | Capacités d'E.V.A, une par sous-paquet, et leur chargement                   |
-| `eva.interfaces`  | Points d'entrée utilisateur : terminal aujourd'hui                          |
-| `eva.app`         | Racine de composition : le seul module qui assemble les pièces concrètes    |
-| `eva.config`      | Réglages du cœur (`EVA_*`) et classe de base des réglages de chaque composant |
-
-**Sens des dépendances :** `domain` ← `llm`, `plugins` ← `agent` ← `interfaces` ← `app`.
-`domain` n'importe rien d'autre d'E.V.A, et seul `app` connaît les classes concrètes.
 
 ### Principes
 
-- **Un outil = une classe** qui déclare son nom, sa description, son **effet**
-  (`READ` ou `ACTION`) et ses arguments sous forme de **modèle pydantic**. Le schéma envoyé au
-  LLM en est généré, et les arguments sont validés avant exécution.
+- **Un outil = une classe** qui déclare son nom, sa description, son **effet** (`READ` ou
+  `ACTION`) et ses arguments sous forme de **modèle pydantic**. Le schéma envoyé au LLM en est
+  généré, et les arguments sont validés avant exécution. Les choix dynamiques (noms de
+  lampes…) passent par `with_choices()`.
 - **Lecture / action** : la description de chaque outil est préfixée automatiquement de
   `[LECTURE SEULE]` ou `[ACTION]`. Le prompt pose une règle générique : pas d'action sans
   demande explicite. Aucune consigne propre à un outil n'est mise dans le prompt.
-- **Erreurs** : un outil lève `ToolError` pour un échec attendu (message transmis au LLM). Un
-  plugin indisponible (non configuré, service injoignable) est ignoré au démarrage, sans
-  bloquer E.V.A.
+- **Erreurs** : toute `EvaError` est un échec attendu, dont le message est lisible ; s'il
+  survient pendant un appel d'outil, il est transmis tel quel au LLM. Un plugin indisponible
+  est ignoré au démarrage, sans bloquer E.V.A.
+- **N sites, un jeu d'outils** : un plugin gère toutes ses instances (plusieurs maisons, plus
+  tard plusieurs comptes) avec un seul jeu d'outils et un argument optionnel pour lever
+  l'ambiguïté, plutôt que de dupliquer les outils.
 - **Événements** : l'agent émet `TextDelta`, `ToolCallStarted`, `ToolCallFinished`,
   `TurnFinished`. Les interfaces et la journalisation s'y abonnent.
 
 ### Ajouter un plugin
 
-1. Créer `src/eva/plugins/<nom>/` avec :
-   - `tools.py` : une classe par outil, héritant de `Tool[Args]` ;
-   - `plugin.py` : une classe avec `name` et `async create_tools(resources)`, qui lit ses
-     réglages (`<Nom>Settings(EvaBaseSettings)`), prépare ses clients et renvoie ses outils ;
-     lever `PluginUnavailable` s'il ne peut pas fonctionner.
-2. L'ajouter à `PLUGINS` dans [`plugins/registry.py`](src/eva/plugins/registry.py).
-3. Écrire ses tests dans `tests/plugins/<nom>/`.
+```
+src/eva/plugins/<nom>/
+├── __init__.py   # exporte la classe Plugin, rien d'autre
+├── plugin.py     # obligatoire : Plugin[Config] avec config_model et async setup(context)
+├── tools.py      # obligatoire : une classe Tool[Args] par outil
+├── config.py     # section [plugins.<nom>] + noms des secrets
+├── domain.py     # entités du plugin
+├── client.py     # API externe ↔ domaine
+├── service.py    # opérations du plugin
+└── cli.py        # commandes annexes (appairage, connexion…)
+```
 
-Exemple minimal : [`plugins/clock/`](src/eva/plugins/clock/).
+1. Créer le paquet avec les couches nécessaires. Seuls `plugin.py` et `tools.py` sont
+   obligatoires. `setup(context)` reçoit `context.config` (sa section d'`eva.toml`, déjà
+   validée), `context.secrets` et `context.resources` (ressources à fermer à l'arrêt). Il
+   renvoie les outils, ou lève `PluginUnavailable`.
+2. L'ajouter à `PLUGINS` dans [`plugins/registry.py`](src/eva/plugins/registry.py)
+   (`"nom": "eva.plugins.nom:NomPlugin"`). Il n'est importé que s'il est activé.
+3. Écrire ses tests dans `tests/plugins/<nom>/`, une suite par couche.
+
+Exemples : [`plugins/clock/`](src/eva/plugins/clock/) (minimal),
+[`plugins/hue/`](src/eva/plugins/hue/) (toutes les couches).
 
 ### Ajouter un fournisseur de LLM
 
 Une classe qui implémente `LLMProvider` ([`llm/provider.py`](src/eva/llm/provider.py)) dans
-`llm/providers/`, plus une branche dans [`llm/factory.py`](src/eva/llm/factory.py).
+`llm/providers/`, avec sa configuration (section `[llm.<nom>]`), plus une branche dans
+[`llm/factory.py`](src/eva/llm/factory.py).
 
 ## Prérequis
 
@@ -83,7 +103,8 @@ uv sync
 ollama pull qwen3:4b-instruct
 
 # 3. Configuration locale
-cp .env.example .env   # puis compléter les valeurs
+cp eva.example.toml eva.toml   # structure : modèle, plugins, maisons…
+cp .env.example .env           # secrets uniquement
 ```
 
 ## Utilisation
@@ -97,65 +118,44 @@ réponse l'interrompt sans quitter E.V.A.
 
 ### Plugin Philips Hue
 
-Appairage, une seule fois : lancer la commande, puis appuyer sur le bouton du bridge dans les
-30 secondes. L'IP du bridge et la clé obtenue sont enregistrées dans `.env`.
+Appairage d'une maison : lancer la commande, puis appuyer sur le bouton du bridge dans les
+30 secondes. La maison est ajoutée à `eva.toml` (commentaires préservés), sa clé à `.env`.
 
 ```bash
-uv run eva-hue-pair
+uv run eva-hue-pair                     # maison « Maison », bridge découvert automatiquement
+uv run eva-hue-pair --name Chalet       # une autre maison
+uv run eva-hue-pair --name Chalet --ip 10.0.0.5
 ```
 
 | Outil                | Effet   | Rôle                                                |
 |----------------------|---------|-----------------------------------------------------|
-| `hue_status`         | lecture | État des pièces, zones, lampes et liste des scènes  |
+| `hue_status`         | lecture | État des pièces, zones, lampes et scènes            |
 | `hue_set_lights`     | action  | Allumer / éteindre / régler intensité et couleur    |
 | `hue_activate_scene` | action  | Activer une scène                                   |
 
-Les noms des lampes, pièces, zones et scènes sont lus sur le bridge au démarrage : le LLM ne
-peut choisir que parmi des noms existants (casse et accents tolérés).
+Les noms des lampes, pièces, zones et scènes de toutes les maisons sont lus au démarrage : le
+LLM ne peut choisir que parmi des noms existants (casse et accents tolérés). Avec plusieurs
+maisons, la maison n'est à préciser que si le nom existe dans plusieurs d'entre elles. Une
+maison injoignable est ignorée, les autres restent utilisables.
 
 ## Configuration
 
-Toute la configuration passe par le fichier `.env` (jamais versionné). Chaque composant lit
-ses propres variables ; voir [`.env.example`](.env.example).
+| Fichier | Contenu | Versionné |
+|---|---|---|
+| `eva.toml` | Structure : prénom, LLM, plugins, maisons… (voir [`eva.example.toml`](eva.example.toml)) | non |
+| `.env` | Secrets uniquement : `HUE_KEY_<MAISON>`… (voir [`.env.example`](.env.example)) | jamais |
 
-| Variable              | Description                                            | Défaut                   |
-|-----------------------|--------------------------------------------------------|--------------------------|
-| `EVA_PROVIDER`        | Fournisseur de LLM (`ollama`)                          | —                        |
-| `EVA_MODEL`           | Modèle utilisé                                         | `qwen3:4b-instruct`      |
-| `EVA_MAX_TOKENS`      | Longueur maximale d'une réponse (tokens)               | `1024`                   |
-| `EVA_USER_NAME`       | Prénom utilisé par E.V.A                               | `Tristan`                |
-| `EVA_HISTORY_TURNS`   | Nombre d'échanges conservés dans la conversation       | `20`                     |
-| `EVA_PLUGINS`         | Plugins activés (`clock,hue`)                          | tous                     |
-| `EVA_LOG_LEVEL`       | Niveau de log (`INFO` affiche les appels d'outils)     | `WARNING`                |
-| `OLLAMA_HOST`         | URL du serveur Ollama                                  | `http://localhost:11434` |
-| `OLLAMA_CONTEXT_SIZE` | Fenêtre de contexte (tokens)                           | `8192`                   |
-| `OLLAMA_KEEP_ALIVE`   | Maintien du modèle en VRAM (`-1` = toujours)           | `30m`                    |
-| `HUE_BRIDGE_IP`       | IP du bridge Philips Hue                               | —                        |
-| `HUE_APP_KEY`         | Clé d'application Hue (obtenue à l'appairage)          | —                        |
+Toute valeur d'`eva.toml` peut être surchargée par l'environnement, préfixe `EVA_` et `__`
+pour une sous-section : `EVA_LOG_LEVEL=INFO uv run eva`, `EVA_LLM__MODEL=…`. Le fichier de
+configuration peut être choisi avec `EVA_CONFIG`.
 
 ## Développement
 
 ```bash
 uv run ruff check .        # lint
 uv run ruff format .       # formatage
-uv run mypy                # typage (mode strict)
-uv run pytest              # tests (arborescence miroir de src/, doublures dans tests/fakes.py)
-```
-
-### Structure du dépôt
-
-```
-src/eva/
-├── __main__.py            # point d'entrée (`eva`)
-├── app.py                 # racine de composition
-├── config.py              # EvaBaseSettings, EvaSettings
-├── domain/                # errors.py, messages.py, text.py, tools.py
-├── agent/                 # agent.py, conversation.py, toolbox.py, events.py, prompt.py
-├── llm/                   # provider.py, factory.py, providers/ollama.py
-├── plugins/               # base.py, registry.py
-│   ├── clock/             # plugin.py, tools.py
-│   └── hue/               # plugin.py, settings.py, client.py, home.py, tools.py, pairing.py
-└── interfaces/            # cli.py
+uv run mypy                # typage strict (sources et tests)
+uv run pytest              # tests (arborescence miroir de src/, doublures dans tests/fakes*.py)
 ```
 
 ## Feuille de route
@@ -163,8 +163,8 @@ src/eva/
 - [x] Chat texte en terminal, abstraction du LLM
 - [x] Boucle d'agent avec function calling
 - [x] Premier fournisseur de LLM : Ollama (local)
-- [x] Contrôle des lampes **Philips Hue** (état, réglages, scènes)
-- [x] Architecture en plugins, asynchrone, orientée événements
+- [x] Contrôle des lampes **Philips Hue** (état, réglages, scènes, plusieurs maisons)
+- [x] Architecture en couches et en plugins, asynchrone, orientée événements
 - [ ] Client MCP pour brancher des serveurs d'outils externes
 - [ ] Mémoire long terme
 - [ ] Interface web

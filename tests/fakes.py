@@ -1,4 +1,4 @@
-"""Doublures de test partagées : faux LLM, outils factices, collecteur d'événements."""
+"""Doublures de test partagées : faux LLM, outils et plugins factices, collecteur d'événements."""
 
 from collections.abc import Sequence
 from typing import Any
@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from eva.agent import AgentEvent
 from eva.domain import AssistantMessage, Message, NoArgs, Tool, ToolCall, ToolEffect, ToolSpec
 from eva.llm import Completion, StopReason, TextCallback
+from eva.plugins import NoConfig, Plugin, PluginContext, PluginUnavailable
 
 
 class ScriptedLLM:
@@ -87,3 +88,39 @@ class EventRecorder:
 
 def call(name: str, **arguments: Any) -> ToolCall:
     return ToolCall(id=f"id-{name}", name=name, arguments=arguments)
+
+
+class EchoPlugin(Plugin[NoConfig]):
+    config_model = NoConfig
+
+    async def setup(self, context: PluginContext[NoConfig]) -> Sequence[Tool[Any]]:
+        return [EchoTool()]
+
+
+class UnavailablePlugin(Plugin[NoConfig]):
+    config_model = NoConfig
+
+    async def setup(self, context: PluginContext[NoConfig]) -> Sequence[Tool[Any]]:
+        raise PluginUnavailable("non configuré")
+
+
+class CrashingPlugin(Plugin[NoConfig]):
+    config_model = NoConfig
+
+    async def setup(self, context: PluginContext[NoConfig]) -> Sequence[Tool[Any]]:
+        raise RuntimeError("boom")
+
+
+class ValueConfig(BaseModel):
+    value: int
+
+
+class ConfiguredPlugin(Plugin[ValueConfig]):
+    """Expose un outil dont le nom reflète la configuration reçue."""
+
+    config_model = ValueConfig
+
+    async def setup(self, context: PluginContext[ValueConfig]) -> Sequence[Tool[Any]]:
+        tool = EchoTool()
+        tool.name = f"echo_{context.config.value}"  # type: ignore[misc]
+        return [tool]

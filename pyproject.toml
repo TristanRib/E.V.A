@@ -9,11 +9,13 @@ dependencies = [
     "httpx>=0.28.1",
     "ollama>=0.6.3",
     "pydantic-settings>=2.16.0",
+    "python-dotenv>=1.2.4",
+    "tomlkit>=0.15.2",
 ]
 
 [project.scripts]
 eva = "eva.__main__:main"
-eva-hue-pair = "eva.plugins.hue.pairing:main"
+eva-hue-pair = "eva.plugins.hue.cli:main"
 
 [dependency-groups]
 dev = [
@@ -54,10 +56,14 @@ python_version = "3.12"
 strict = true
 files = ["src", "tests"]
 plugins = ["pydantic.mypy"]
+# Les tests ne sont pas un paquet : modules nommés d'après leur chemin depuis `src` ou
+# `tests` (`plugins.hue.test_tools` ≠ `domain.test_tools`), doublures importables.
+mypy_path = ["src", "tests"]
+explicit_package_bases = true
 
 # --- Tests ------------------------------------------------------------------
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["tests"]  # rend `fakes` (doublures de test partagées) importable
+pythonpath = ["tests"]  # rend les doublures (`fakes`, `fakes_hue`…) importables
 addopts = "-ra --import-mode=importlib"
 asyncio_mode = "auto"

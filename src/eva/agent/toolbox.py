@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from eva.domain import Tool, ToolCall, ToolError, ToolResult, ToolSpec
+from eva.domain import EvaError, Tool, ToolCall, ToolResult, ToolSpec
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class Toolbox:
 
         try:
             return ToolResult(call.id, await tool.run(args))
-        except ToolError as e:
+        except EvaError as e:  # échec attendu (ToolError, service injoignable…) : message lisible
             return ToolResult(call.id, str(e), is_error=True)
         except Exception:
             logger.exception("Échec inattendu de l'outil %s", call.name)

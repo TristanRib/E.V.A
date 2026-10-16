@@ -3,7 +3,7 @@ import asyncio
 import pytest
 
 from eva.agent import Toolbox
-from eva.domain import NoArgs, Tool, ToolEffect, ToolError
+from eva.domain import EvaError, NoArgs, Tool, ToolEffect, ToolError
 from fakes import EchoTool, FailingTool, call
 
 
@@ -31,6 +31,17 @@ async def test_tool_error_message_is_forwarded() -> None:
     result = await Toolbox([FailingTool(ToolError("Bridge éteint."))]).execute(call("fail"))
 
     assert (result.content, result.is_error) == ("Bridge éteint.", True)
+
+
+async def test_any_eva_error_is_forwarded_not_only_tool_error() -> None:
+    class ServiceDown(EvaError):
+        pass
+
+    toolbox = Toolbox([FailingTool(ServiceDown("Bridge Hue injoignable (ConnectTimeout)"))])
+
+    result = await toolbox.execute(call("fail"))
+
+    assert (result.content, result.is_error) == ("Bridge Hue injoignable (ConnectTimeout)", True)
 
 
 async def test_unexpected_exception_is_hidden_behind_generic_message() -> None:

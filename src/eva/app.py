@@ -9,19 +9,19 @@ from contextlib import AsyncExitStack
 from pydantic import ValidationError
 
 from eva.agent import Agent, Conversation, LoggingSink, Toolbox, build_system_prompt
-from eva.config import EvaSettings
+from eva.config import EvaSettings, Secrets, config_path
 from eva.domain import ConfigurationError
 from eva.interfaces import CliInterface
 from eva.llm import create_provider
-from eva.plugins import PLUGINS, load_plugins
+from eva.plugins import load_plugins
 
 
 async def run() -> None:
     try:
         settings = EvaSettings()
-        llm = create_provider(settings)
+        llm = create_provider(settings.llm)
     except ValidationError as e:
-        raise SystemExit(f"[configuration] Valeur invalide dans .env :\n{e}") from e
+        raise SystemExit(f"[configuration] Valeur invalide dans {config_path()} :\n{e}") from e
     except ConfigurationError as e:
         raise SystemExit(f"[configuration] {e}") from e
 
@@ -32,7 +32,7 @@ async def run() -> None:
 
     async with AsyncExitStack() as resources:
         resources.push_async_callback(llm.aclose)
-        tools = await load_plugins(PLUGINS, resources, enabled=settings.enabled_plugins)
+        tools = await load_plugins(settings.plugins, Secrets.load(), resources)
 
         agent = Agent(
             llm,

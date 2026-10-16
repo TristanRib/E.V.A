@@ -5,9 +5,8 @@ from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
 import ollama
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 
-from eva.config import EvaBaseSettings
 from eva.domain import (
     AssistantMessage,
     Message,
@@ -22,24 +21,28 @@ from eva.llm.provider import Completion, LLMError, StopReason, TextCallback, des
 DEFAULT_MODEL = "qwen3:4b-instruct"
 
 
-class OllamaSettings(EvaBaseSettings):
-    host: str = Field(default="http://localhost:11434", validation_alias="OLLAMA_HOST")
-    context_size: int = Field(default=8192, ge=2048, validation_alias="OLLAMA_CONTEXT_SIZE")
+class OllamaConfig(BaseModel):
+    """Section `[llm.ollama]` d'`eva.toml`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    host: str = "http://localhost:11434"
+    context_size: int = Field(default=8192, ge=2048)
     """Fenêtre de contexte en tokens (plus grand = mémoire plus longue, plus de VRAM)."""
-    keep_alive: str = Field(default="30m", validation_alias="OLLAMA_KEEP_ALIVE")
+    keep_alive: str = "30m"
     """Durée de maintien du modèle en VRAM après usage (`30m`, `2h`, `-1` = toujours)."""
 
 
 class OllamaProvider:
     def __init__(
         self,
-        settings: OllamaSettings,
+        config: OllamaConfig,
         *,
         model: str = DEFAULT_MODEL,
         max_tokens: int = 1024,
     ) -> None:
-        self._client = ollama.AsyncClient(host=settings.host)
-        self._settings = settings
+        self._client = ollama.AsyncClient(host=config.host)
+        self._config = config
         self._model = model
         self._max_tokens = max_tokens
 
@@ -73,9 +76,9 @@ class OllamaProvider:
                 stream=True,
                 # Sans valeur explicite, Ollama limite le contexte à 4096 tokens et
                 # supprime silencieusement les messages les plus anciens au-delà.
-                options={"num_ctx": self._settings.context_size, "num_predict": self._max_tokens},
+                options={"num_ctx": self._config.context_size, "num_predict": self._max_tokens},
                 # Garde le modèle en VRAM entre deux messages (rechargement = plusieurs secondes).
-                keep_alive=self._settings.keep_alive,
+                keep_alive=self._config.keep_alive,
             )
             async for chunk in stream:
                 if chunk.message.content:
@@ -94,7 +97,7 @@ class OllamaProvider:
             raise LLMError(f"Erreur d'Ollama ({e.status_code}) : {e.error}") from e
         except ConnectionError as e:
             raise LLMError(
-                f"Impossible de joindre Ollama sur {self._settings.host} : est-il lancé ?"
+                f"Impossible de joindre Ollama sur {self._config.host} : est-il lancé ?"
             ) from e
         except ollama.RequestError as e:
             raise LLMError(f"Requête Ollama invalide : {e.error}") from e

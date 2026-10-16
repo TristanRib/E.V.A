@@ -3,40 +3,65 @@
 Ajouter un plugin = créer son paquet dans `plugins/` + l'ajouter à `PLUGINS`.
 """
 
+import importlib
 import logging
-from collections.abc import Collection, Iterable
+from collections.abc import Mapping
 from contextlib import AsyncExitStack
-from typing import Any
+from typing import Any, cast
 
+from pydantic import ValidationError
+
+from eva.config import PluginsSettings, Secrets
 from eva.domain import Tool
-from eva.plugins.base import Plugin, PluginUnavailable
-from eva.plugins.clock import ClockPlugin
-from eva.plugins.hue import HuePlugin
+from eva.plugins.base import Plugin, PluginContext, PluginUnavailable
 
 logger = logging.getLogger(__name__)
 
-PLUGINS: tuple[Plugin, ...] = (ClockPlugin(), HuePlugin())
+PLUGINS: Mapping[str, str] = {
+    "clock": "eva.plugins.clock:ClockPlugin",
+    "hue": "eva.plugins.hue:HuePlugin",
+}
+"""Nom du plugin → `module:Classe`. L'import n'a lieu qu'au chargement, s'il est activé."""
 
 
 async def load_plugins(
-    plugins: Iterable[Plugin],
+    settings: PluginsSettings,
+    secrets: Secrets,
     resources: AsyncExitStack,
     *,
-    enabled: Collection[str] | None = None,
+    available: Mapping[str, str] = PLUGINS,
 ) -> list[Tool[Any]]:
-    """Charge les outils des plugins activés (`enabled=None` : tous).
+    """Charge les outils des plugins activés.
 
-    Un plugin indisponible ou en échec est ignoré avec un avertissement : il ne doit
-    jamais empêcher E.V.A de démarrer.
+    Import, validation de la configuration et préparation sont isolés plugin par plugin :
+    un plugin en échec est ignoré avec un avertissement et n'empêche jamais E.V.A de
+    démarrer.
     """
+    names = settings.enabled if settings.enabled is not None else list(available)
     tools: list[Tool[Any]] = []
-    for plugin in plugins:
-        if enabled is not None and plugin.name not in enabled:
+
+    for name in names:
+        if name not in available:
+            logger.warning(
+                "Plugin « %s » inconnu (plugins disponibles : %s)", name, ", ".join(available)
+            )
             continue
         try:
-            tools.extend(await plugin.create_tools(resources))
+            plugin = _instantiate(available[name])
+            config = plugin.config_model.model_validate(settings.section(name))
+            tools.extend(await plugin.setup(PluginContext(config, secrets, resources)))
         except PluginUnavailable as e:
-            logger.warning("Plugin « %s » indisponible : %s", plugin.name, e)
+            logger.warning("Plugin « %s » indisponible : %s", name, e)
+        except ValidationError as e:
+            logger.warning(
+                "Plugin « %s » : configuration [plugins.%s] invalide :\n%s", name, name, e
+            )
         except Exception:
-            logger.exception("Échec du chargement du plugin « %s »", plugin.name)
+            logger.exception("Échec du chargement du plugin « %s »", name)
     return tools
+
+
+def _instantiate(target: str) -> Plugin[Any]:
+    module_name, _, class_name = target.partition(":")
+    plugin_class = getattr(importlib.import_module(module_name), class_name)
+    return cast("Plugin[Any]", plugin_class())

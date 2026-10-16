@@ -16,7 +16,7 @@ from eva.domain import (
     UserMessage,
 )
 from eva.llm import Completion, StopReason, describe_tool
-from eva.llm.providers.ollama import OllamaProvider, OllamaSettings, _to_api_messages
+from eva.llm.providers.ollama import OllamaConfig, OllamaProvider, _to_api_messages
 
 
 def chunk(
@@ -50,7 +50,7 @@ class FakeChat:
 async def complete(
     *chunks: ollama.ChatResponse, on_text: list[str] | None = None
 ) -> tuple[Completion, FakeChat]:
-    provider = OllamaProvider(OllamaSettings(context_size=4096, keep_alive="5m"))
+    provider = OllamaProvider(OllamaConfig(context_size=4096, keep_alive="5m"))
     fake = FakeChat(*chunks)
     provider._client.chat = fake  # type: ignore[method-assign,assignment]
     completion = await provider.complete(
