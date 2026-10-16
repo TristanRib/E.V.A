@@ -9,6 +9,21 @@ from enum import StrEnum
 from typing import Any
 
 
+class ToolEffect(StrEnum):
+    """Ce qu'un outil fait au monde réel ; chaque outil doit le déclarer."""
+
+    READ = "read"
+    """Consulte uniquement (heure, état des lumières…)."""
+    ACTION = "action"
+    """Modifie quelque chose (allumer une lampe, envoyer un message…)."""
+
+
+_EFFECT_TAGS = {
+    ToolEffect.READ: "[LECTURE SEULE]",
+    ToolEffect.ACTION: "[ACTION : modifie le monde réel]",
+}
+
+
 @dataclass(frozen=True, slots=True)
 class ToolSpec:
     """Description d'un outil telle que présentée au LLM."""
@@ -17,6 +32,12 @@ class ToolSpec:
     description: str
     input_schema: dict[str, Any]
     """Schéma JSON (type `object`) des arguments attendus."""
+    effect: ToolEffect
+
+    @property
+    def tagged_description(self) -> str:
+        """Description préfixée de son effet : c'est elle que les fournisseurs envoient au LLM."""
+        return f"{_EFFECT_TAGS[self.effect]} {self.description}"
 
 
 @dataclass(frozen=True, slots=True)

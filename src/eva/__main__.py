@@ -25,7 +25,7 @@ def main() -> None:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
 
-    agent = Agent(llm, default_tools(), SYSTEM_PROMPT, max_turns=settings.history_turns)
+    agent = Agent(llm, default_tools(settings), SYSTEM_PROMPT, max_turns=settings.history_turns)
     run_cli(agent, provider_name=llm.name)
 
 

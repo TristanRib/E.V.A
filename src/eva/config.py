@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,6 +34,10 @@ class Settings(BaseSettings):
 
     # --- Ollama ---
     ollama_host: str = Field(default="http://localhost:11434", validation_alias="OLLAMA_HOST")
+
+    # --- Philips Hue ---
+    hue_bridge_ip: str | None = Field(default=None, validation_alias="HUE_BRIDGE_IP")
+    hue_app_key: SecretStr | None = Field(default=None, validation_alias="HUE_APP_KEY")
 
     @field_validator("log_level", mode="before")
     @classmethod

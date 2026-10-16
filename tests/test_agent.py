@@ -13,6 +13,7 @@ from eva.llm import (
     StopReason,
     TextCallback,
     ToolCall,
+    ToolEffect,
     ToolResultsMessage,
     ToolSpec,
     UserMessage,
@@ -47,7 +48,9 @@ class ScriptedLLM:
 
 
 class EchoTool:
-    spec = ToolSpec("echo", "Renvoie son argument.", {"type": "object", "properties": {}})
+    spec = ToolSpec(
+        "echo", "Renvoie son argument.", {"type": "object", "properties": {}}, ToolEffect.READ
+    )
 
     def run(self, arguments: dict[str, Any]) -> str:
         return str(arguments["value"])

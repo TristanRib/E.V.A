@@ -3,16 +3,28 @@ from typing import Any
 
 import pytest
 
-from eva.llm import ToolCall, ToolSpec
+from eva.llm import ToolCall, ToolEffect, ToolSpec
 from eva.tools import ClockTool, ToolRegistry
 from eva.tools.clock import format_datetime
 
 
 class FailingTool:
-    spec = ToolSpec("fail", "Échoue toujours.", {"type": "object", "properties": {}})
+    spec = ToolSpec(
+        "fail", "Échoue toujours.", {"type": "object", "properties": {}}, ToolEffect.READ
+    )
 
     def run(self, arguments: dict[str, Any]) -> str:
         raise RuntimeError("boom")
+
+
+def test_description_is_tagged_with_effect() -> None:
+    schema: dict[str, Any] = {"type": "object", "properties": {}}
+
+    read = ToolSpec("r", "Consulte.", schema, ToolEffect.READ)
+    action = ToolSpec("a", "Agit.", schema, ToolEffect.ACTION)
+
+    assert read.tagged_description == "[LECTURE SEULE] Consulte."
+    assert action.tagged_description.startswith("[ACTION")
 
 
 def test_unknown_tool_returns_error_result() -> None:

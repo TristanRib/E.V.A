@@ -65,6 +65,30 @@ cp .env.example .env   # puis compléter les valeurs
 uv run eva
 ```
 
+### Philips Hue
+
+Appairage, une seule fois : lancer la commande, puis appuyer sur le bouton du bridge dans les
+30 secondes. L'IP du bridge et la clé obtenue sont enregistrées dans `.env`.
+
+```bash
+uv run eva-hue-pair
+```
+
+E.V.A dispose alors de trois outils :
+
+| Outil                | Type     | Rôle                                                        |
+|----------------------|----------|-------------------------------------------------------------|
+| `hue_status`         | lecture  | État des pièces, zones, lampes et liste des scènes          |
+| `hue_set_lights`     | action   | Allumer / éteindre / régler intensité et couleur            |
+| `hue_activate_scene` | action   | Activer une scène                                           |
+
+Les descriptions des outils distinguent explicitement **lecture** et **action** : un petit
+modèle tend sinon à « consulter » les scènes en en activant une.
+
+Les noms des lampes, pièces, zones et scènes sont lus sur le bridge au démarrage : le LLM ne
+peut choisir que parmi des noms existants. Si le bridge est injoignable, E.V.A démarre sans
+les outils Hue.
+
 ## Configuration
 
 Toute la configuration passe par des variables d'environnement (fichier `.env`, jamais versionné).
@@ -104,6 +128,7 @@ E.V.A/
 │   ├── core/            # orchestrateur : agent.py, prompts.py
 │   ├── llm/             # types.py, base.py, factory.py, ollama.py
 │   ├── tools/           # base.py (registre), clock.py
+│   │   └── hue/         # client.py (API CLIP v2), home.py, tools.py, pairing.py
 │   └── interfaces/      # cli.py, puis web / vocal
 ├── tests/
 ├── .env.example
@@ -115,7 +140,7 @@ E.V.A/
 - [x] Chat texte en terminal, abstraction du LLM
 - [x] Boucle d'agent avec function calling (outil de test : date et heure)
 - [x] Premier fournisseur de LLM : Ollama (local)
-- [ ] Contrôle des lampes **Philips Hue**
+- [x] Contrôle des lampes **Philips Hue** (état, réglages, scènes)
 - [ ] Client MCP pour brancher des serveurs d'outils externes
 - [ ] Mémoire long terme
 - [ ] Interface web

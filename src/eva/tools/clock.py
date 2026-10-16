@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from eva.llm import ToolSpec
+from eva.llm import ToolEffect, ToolSpec
 
 # Noms en dur plutôt que la locale système, qui varie d'une machine à l'autre.
 _WEEKDAYS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
@@ -32,6 +32,7 @@ class ClockTool:
         name="get_current_datetime",
         description="Renvoie la date (avec le jour de la semaine) et l'heure locales actuelles.",
         input_schema={"type": "object", "properties": {}},
+        effect=ToolEffect.READ,
     )
 
     def run(self, arguments: dict[str, Any]) -> str:

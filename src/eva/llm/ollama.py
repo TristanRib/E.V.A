@@ -105,7 +105,7 @@ def _to_api_tool(spec: ToolSpec) -> Mapping[str, Any]:
         "type": "function",
         "function": {
             "name": spec.name,
-            "description": spec.description,
+            "description": spec.tagged_description,
             "parameters": spec.input_schema,
         },
     }
