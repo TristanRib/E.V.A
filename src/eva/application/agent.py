@@ -2,8 +2,8 @@
 
 from collections.abc import Iterable
 
-from eva.agent.conversation import Conversation
-from eva.agent.events import (
+from eva.application.conversation import Conversation
+from eva.application.events import (
     EventSink,
     FanOut,
     TextDelta,
@@ -11,9 +11,9 @@ from eva.agent.events import (
     ToolCallStarted,
     TurnFinished,
 )
-from eva.agent.toolbox import Toolbox
+from eva.application.llm import LLMProvider, StopReason
+from eva.application.toolbox import Toolbox
 from eva.domain import EvaError, ToolResultsMessage, UserMessage
-from eva.llm import LLMProvider, StopReason
 
 TRUNCATED_NOTE = "\n[réponse tronquée]"
 

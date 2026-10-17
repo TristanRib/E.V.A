@@ -15,7 +15,7 @@ dependencies = [
 
 [project.scripts]
 eva = "eva.__main__:main"
-eva-hue-pair = "eva.plugins.hue.cli:main"
+eva-hue-pair = "eva.plugins.hue.interfaces.cli:main"
 
 [dependency-groups]
 dev = [

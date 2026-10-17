@@ -2,19 +2,21 @@ import asyncio
 
 import pytest
 
-from eva.agent import (
+from eva.application import (
     Agent,
     AgentError,
+    Completion,
     Conversation,
+    LLMError,
+    StopReason,
     TextDelta,
     Toolbox,
     ToolCallFinished,
     ToolCallStarted,
     TurnFinished,
 )
-from eva.agent.agent import TRUNCATED_NOTE
+from eva.application.agent import TRUNCATED_NOTE
 from eva.domain import AssistantMessage, ToolResultsMessage, UserMessage
-from eva.llm import Completion, LLMError, StopReason
 from fakes import EchoTool, EventRecorder, ScriptedLLM, call, reply, tool_request
 
 

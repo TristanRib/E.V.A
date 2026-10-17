@@ -1,4 +1,4 @@
-from eva.agent import Conversation
+from eva.application import Conversation
 from eva.domain import AssistantMessage, ToolCall, ToolResult, ToolResultsMessage, UserMessage
 
 

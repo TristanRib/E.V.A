@@ -5,13 +5,13 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from eva.domain import Tool, ToolEffect, choice, with_choices
+from eva.plugins.hue.application import HueHome, HueHomes
 from eva.plugins.hue.domain import (
     PALETTE,
     WHOLE_HOME_ALIASES,
     BridgeState,
     LightChange,
 )
-from eva.plugins.hue.service import HueHome, HueHomes
 
 _HOME_FIELD = "Maison concernée ; inutile s'il n'y a pas d'ambiguïté."
 
@@ -83,7 +83,8 @@ class HueSetLightsTool(Tool[SetLightsArgs]):
 class SceneArgs(BaseModel):
     scene: str = Field(description="Nom de la scène.")
     group: str | None = Field(
-        default=None, description="Pièce ou zone, si la scène existe à plusieurs endroits."
+        default=None,
+        description="Pièce ou zone où activer la scène, si l'utilisateur en précise une.",
     )
     home: str | None = Field(default=None, description=_HOME_FIELD)
 
@@ -100,7 +101,7 @@ class HueActivateSceneTool(Tool[SceneArgs]):
         self.args_model = with_choices(
             SceneArgs,
             scene=choice(homes.scene_names()),
-            group=choice(homes.scene_groups()),
+            group=choice(homes.area_names()),
             home=choice(homes.names),
         )
 

@@ -5,6 +5,7 @@ from typing import Any
 
 import ollama
 
+from eva.application import Completion, StopReason, describe_tool
 from eva.domain import (
     AssistantMessage,
     Message,
@@ -15,8 +16,7 @@ from eva.domain import (
     ToolSpec,
     UserMessage,
 )
-from eva.llm import Completion, StopReason, describe_tool
-from eva.llm.providers.ollama import OllamaConfig, OllamaProvider, _to_api_messages
+from eva.infrastructure.llm.ollama import OllamaConfig, OllamaProvider, _to_api_messages
 
 
 def chunk(

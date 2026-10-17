@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from eva.domain import EvaError, Tool, ToolCall, ToolResult, ToolSpec
+from eva.domain import EvaError, Tool, ToolCall, ToolEffect, ToolResult, ToolSpec
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +26,19 @@ class Toolbox:
         return list(self._specs)
 
     async def execute_all(self, calls: Sequence[ToolCall]) -> tuple[ToolResult, ...]:
-        """Exécute en parallèle les appels d'une même réponse ; l'ordre est conservé."""
-        return tuple(await asyncio.gather(*(self.execute(call) for call in calls)))
+        """Exécute les appels d'une même réponse ; les résultats suivent l'ordre des appels.
+
+        Des lectures peuvent s'exécuter en parallèle. Dès qu'une action est présente, l'ordre
+        fait partie de l'intention (une action peut compléter ou corriger la précédente) :
+        les appels s'exécutent alors un par un, dans l'ordre demandé.
+        """
+        if all(self._is_read(call) for call in calls):
+            return tuple(await asyncio.gather(*(self.execute(call) for call in calls)))
+        return tuple([await self.execute(call) for call in calls])
+
+    def _is_read(self, call: ToolCall) -> bool:
+        tool = self._tools.get(call.name)
+        return tool is not None and tool.effect is ToolEffect.READ
 
     async def execute(self, call: ToolCall) -> ToolResult:
         """Exécute un appel ; tout échec devient un résultat d'erreur lisible par le LLM."""

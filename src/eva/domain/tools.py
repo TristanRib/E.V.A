@@ -19,9 +19,9 @@ class ToolEffect(StrEnum):
     """Ce qu'un outil fait au monde réel ; chaque outil doit le déclarer."""
 
     READ = "read"
-    """Consulte uniquement (heure, état des lumières…)."""
+    """Consulte uniquement, sans rien modifier."""
     ACTION = "action"
-    """Modifie quelque chose (allumer une lampe, envoyer un message…)."""
+    """Modifie l'état du monde réel ou déclenche quelque chose."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,8 +72,12 @@ class Tool[ArgsT: BaseModel](ABC):
 def choice(values: Iterable[str], *, aliases: Mapping[str, str] | None = None) -> Any:
     """Type d'argument limité à `values`, tolérant casse, accents et alias.
 
-    Dans le schéma, le LLM voit la liste exacte (`enum`) ; à la validation, « chambre »
-    ou « Chambre » sont ramenés à la valeur canonique.
+    Dans le schéma, le LLM voit la liste exacte (`enum`) ; à la validation, une valeur
+    écrite avec une autre casse ou sans accents est ramenée à sa forme canonique.
+
+    La liste doit couvrir tout ce que l'utilisateur peut désigner : faute de pouvoir
+    exprimer une valeur absente, le LLM tend à choisir la plus proche, et donc à agir
+    sur autre chose que ce qui était demandé.
     """
     canonical = {normalize(v): v for v in values}
     canonical.update({normalize(alias): target for alias, target in (aliases or {}).items()})
@@ -89,7 +93,7 @@ def with_choices[ModelT: BaseModel](base: type[ModelT], **choices: Any) -> type[
     """Dérive `base` en restreignant des champs `str` aux choix donnés (voir `choice()`).
 
     Les arguments restent typés statiquement par `base` ; seuls le schéma et la validation
-    connaissent les valeurs, souvent dynamiques (noms des lampes, des scènes…).
+    connaissent les valeurs, souvent connues seulement à l'exécution.
     """
     overrides: dict[str, Any] = {}
     for field_name, allowed in choices.items():

@@ -1,24 +1,38 @@
-"""Opérations Hue sur une ou plusieurs maisons, utilisables sans LLM."""
+"""Opérations Hue sur une ou plusieurs maisons, utilisables sans LLM.
+
+`HueBridge` est le contrat attendu d'un bridge ; son implémentation vit dans
+`infrastructure.py`.
+"""
 
 import asyncio
 from collections.abc import Callable, Iterable, Sequence
+from typing import Protocol
 
 from eva.domain import normalize
-from eva.plugins.hue.client import HueClient
 from eva.plugins.hue.domain import BridgeState, HueError, LightChange, Scene, Target
+
+
+class HueBridge(Protocol):
+    """Ce que l'application attend d'un bridge Hue."""
+
+    async def fetch_state(self) -> BridgeState: ...
+
+    async def apply(self, target: Target, change: LightChange) -> None: ...
+
+    async def recall(self, scene: Scene) -> None: ...
 
 
 class HueHome:
     """Une maison configurée : son bridge et l'état de celui-ci, gardé en cache."""
 
-    def __init__(self, name: str, client: HueClient, state: BridgeState) -> None:
+    def __init__(self, name: str, bridge: HueBridge, state: BridgeState) -> None:
         self.name = name
-        self._client = client
+        self._bridge = bridge
         self._state = state
 
     @classmethod
-    async def connect(cls, name: str, client: HueClient) -> "HueHome":
-        return cls(name, client, await client.fetch_state())
+    async def connect(cls, name: str, bridge: HueBridge) -> "HueHome":
+        return cls(name, bridge, await bridge.fetch_state())
 
     @property
     def state(self) -> BridgeState:
@@ -26,14 +40,14 @@ class HueHome:
         return self._state
 
     async def refresh(self) -> BridgeState:
-        self._state = await self._client.fetch_state()
+        self._state = await self._bridge.fetch_state()
         return self._state
 
     async def set_lights(self, target: Target, change: LightChange) -> None:
-        await self._client.apply(target, change)
+        await self._bridge.apply(target, change)
 
     async def activate_scene(self, scene: Scene) -> None:
-        await self._client.recall(scene)
+        await self._bridge.recall(scene)
 
 
 class HueHomes:
@@ -58,8 +72,9 @@ class HueHomes:
     def scene_names(self) -> list[str]:
         return _unique(s.name for home in self._homes for s in home.state.scenes)
 
-    def scene_groups(self) -> list[str]:
-        return _unique(s.group_name for home in self._homes for s in home.state.scenes)
+    def area_names(self) -> list[str]:
+        """Toutes les pièces et zones, y compris celles sans scène."""
+        return _unique(name for home in self._homes for name in home.state.area_names())
 
     async def status(self, home: str | None = None) -> list[tuple[HueHome, BridgeState]]:
         """État à jour de la maison demandée, ou de toutes."""
@@ -84,6 +99,9 @@ class HueHomes:
     async def activate_scene(
         self, scene_name: str, group: str | None = None, home: str | None = None
     ) -> tuple[HueHome, Scene]:
+        if group is not None:
+            self._check_scene_in_group(scene_name, group, home)
+
         def find(state: BridgeState) -> list[Scene]:
             scenes = state.find_scenes(scene_name, group)
             if len(scenes) > 1:
@@ -96,6 +114,21 @@ class HueHomes:
         owner, scene = await self._resolve(home, find, f"la scène « {scene_name} »")
         await owner.activate_scene(scene)
         return owner, scene
+
+    def _check_scene_in_group(self, scene_name: str, group: str, home: str | None) -> None:
+        """Explique précisément pourquoi une scène n'existe pas dans le groupe demandé."""
+        available = _unique(s.name for h in self._select(home) for s in h.state.scenes_of(group))
+        if not available:
+            with_scenes = _unique(s.group_name for h in self._select(home) for s in h.state.scenes)
+            raise HueError(
+                f"« {group} » n'a aucune scène. "
+                f"Groupes ayant des scènes : {', '.join(with_scenes)}."
+            )
+        if normalize(scene_name) not in {normalize(name) for name in available}:
+            raise HueError(
+                f"Pas de scène « {scene_name} » pour {group}. "
+                f"Scènes disponibles : {', '.join(available)}."
+            )
 
     async def _resolve[T](
         self, home: str | None, find: Callable[[BridgeState], list[T]], label: str

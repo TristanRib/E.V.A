@@ -57,7 +57,7 @@ class LoggingSink:
     """Journalise les appels d'outils (visibles avec EVA_LOG_LEVEL=INFO)."""
 
     def __init__(self, logger: logging.Logger | None = None) -> None:
-        self._logger = logger or logging.getLogger("eva.agent")
+        self._logger = logger or logging.getLogger("eva.application")
 
     def emit(self, event: AgentEvent) -> None:
         if isinstance(event, ToolCallFinished):

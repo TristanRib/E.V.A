@@ -2,8 +2,8 @@
 
 import pytest
 
+from eva.plugins.hue.application import HueHomes
 from eva.plugins.hue.domain import HueError, LightChange
-from eva.plugins.hue.service import HueHomes
 from fakes_hue import FakeTransport, chalet_bridge, connect, main_bridge
 
 
@@ -62,6 +62,24 @@ async def test_ambiguous_scene_within_a_home_asks_for_group(homes: HueHomes) -> 
 
     home, scene = await homes.activate_scene("Lecture", group="TV")
     assert (home.name, scene.id) == ("Maison", "s2")
+
+
+async def test_group_without_scene_is_explained_not_replaced(
+    homes: HueHomes, bridges: tuple[FakeTransport, FakeTransport]
+) -> None:
+    with pytest.raises(HueError, match="« Ordinateur » n'a aucune scène"):
+        await homes.activate_scene("Détente", group="Ordinateur")
+
+    assert bridges[0].puts == []
+
+
+async def test_scene_missing_from_group_lists_available_ones(homes: HueHomes) -> None:
+    with pytest.raises(HueError, match=r"Pas de scène « Détente » pour TV\. .* : Lecture\."):
+        await homes.activate_scene("Détente", group="TV")
+
+
+async def test_area_names_include_areas_without_scenes(homes: HueHomes) -> None:
+    assert homes.area_names() == ["Chambre", "TV", "Ordinateur", "Salon"]
 
 
 async def test_unknown_home_is_reported(homes: HueHomes) -> None:

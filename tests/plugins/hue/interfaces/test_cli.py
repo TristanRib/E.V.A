@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from eva.plugins.hue.cli import configured_bridge_ips, save_home, update_env_file
+from eva.plugins.hue.interfaces.cli import configured_bridge_ips, save_home, update_env_file
 
 EXISTING = """\
 # Ma configuration

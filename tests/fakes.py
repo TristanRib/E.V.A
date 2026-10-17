@@ -5,9 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from eva.agent import AgentEvent
+from eva.application import AgentEvent, Completion, StopReason, TextCallback
 from eva.domain import AssistantMessage, Message, NoArgs, Tool, ToolCall, ToolEffect, ToolSpec
-from eva.llm import Completion, StopReason, TextCallback
 from eva.plugins import NoConfig, Plugin, PluginContext, PluginUnavailable
 
 

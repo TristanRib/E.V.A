@@ -7,6 +7,7 @@ from typing import Any
 import ollama
 from pydantic import BaseModel, ConfigDict, Field
 
+from eva.application.llm import Completion, LLMError, StopReason, TextCallback, describe_tool
 from eva.domain import (
     AssistantMessage,
     Message,
@@ -15,7 +16,6 @@ from eva.domain import (
     ToolSpec,
     UserMessage,
 )
-from eva.llm.provider import Completion, LLMError, StopReason, TextCallback, describe_tool
 
 # Variante « instruct » : répond directement, sans phase de réflexion (rapide).
 DEFAULT_MODEL = "qwen3:4b-instruct"

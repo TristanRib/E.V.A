@@ -8,7 +8,7 @@ import threading
 from collections.abc import Iterator
 from typing import Any
 
-from eva.agent import Agent, AgentEvent, TextDelta
+from eva.application import Agent, AgentEvent, TextDelta
 from eva.domain import EvaError
 
 _HELP = "Commandes : /reset (nouvelle conversation), /quit (quitter)"

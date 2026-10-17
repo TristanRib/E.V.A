@@ -11,31 +11,35 @@ grâce au *function calling*.
 
 ## Architecture
 
-Le cœur et chaque plugin suivent **la même architecture en couches, avec les mêmes noms** :
-un plugin est un E.V.A en miniature.
+Le cœur et chaque plugin suivent **la même architecture en couches, avec les mêmes noms et
+les mêmes règles** : un plugin est un E.V.A en miniature.
 
-| Couche | Cœur d'E.V.A | Plugin | Règle |
+| Couche | Cœur d'E.V.A | Plugin | Rôle |
 |---|---|---|---|
-| Domaine | `domain/` | `domain.py` | Entités et règles pures ; n'importe rien du projet (sauf `eva.domain` pour un plugin) |
+| Domaine | `domain/` | `domain.py` | Entités et règles pures |
+| Application | `application/` | `application.py` | Logique applicative, utilisable sans LLM ; **définit les contrats** dont elle a besoin |
+| Infrastructure | `infrastructure/` | `infrastructure.py` | Accès au monde extérieur ; **implémente ces contrats** ; seule à connaître les formats externes |
+| Interfaces | `interfaces/` | `interfaces/` | Points d'entrée : vers l'humain (CLI) ou vers le LLM (outils d'un plugin) |
 | Configuration | `config.py` | `config.py` | Schéma de sa section d'`eva.toml` + noms de ses secrets |
-| Accès externe | `llm/` | `client.py` | Seul à connaître le format externe ; traduit externe ↔ domaine |
-| Application | `agent/` | `service.py` | Logique applicative, utilisable sans LLM |
-| Points d'entrée | `interfaces/` | `tools.py`, `cli.py` | Adaptateurs vers le LLM (outils) ou l'humain (commandes) |
 | Assemblage | `app.py` | `plugin.py` | Instancie et relie ; aucune logique |
 
-Les dépendances vont toujours dans le même sens : points d'entrée → application →
-accès externe → domaine.
+**Règles de dépendance**, vérifiables par les imports :
+- `domain` ne dépend de rien ;
+- `application` ne dépend que de `domain` : elle déclare ce qu'elle attend sous forme de
+  contrat (`LLMProvider` dans le cœur, `HueBridge` dans Hue) ;
+- `infrastructure` implémente ces contrats ; `interfaces` utilise `application` ;
+- seul l'assemblage (`app.py`, `plugin.py`) connaît toutes les pièces concrètes.
 
 ```
-            interfaces (terminal → web → vocal)
-                          │  événements
-                          ▼
-   app.py ──────►  agent  (boucle LLM ↔ outils, conversation, prompt)
- (assemblage)      │    │
-                   ▼    ▼
-                 llm    plugins (clock, hue, …)
-                   ╲    ╱
-                   domain  (messages, contrat Tool, erreurs)
+        interfaces (terminal → web → vocal)
+                      │  événements
+                      ▼
+               application  (agent, conversation, outils, prompt, contrat LLMProvider)
+                 ▲        ▲
+                 │        │ implémente
+   app.py   plugins    infrastructure (llm/ollama…)
+(assemblage)     ╲        ╱
+                  domain  (messages, contrat Tool, erreurs)
 ```
 
 ### Principes
@@ -60,18 +64,19 @@ accès externe → domaine.
 
 ```
 src/eva/plugins/<nom>/
-├── __init__.py   # exporte la classe Plugin, rien d'autre
-├── plugin.py     # obligatoire : Plugin[Config] avec config_model et async setup(context)
-├── tools.py      # obligatoire : une classe Tool[Args] par outil
-├── config.py     # section [plugins.<nom>] + noms des secrets
-├── domain.py     # entités du plugin
-├── client.py     # API externe ↔ domaine
-├── service.py    # opérations du plugin
-└── cli.py        # commandes annexes (appairage, connexion…)
+├── __init__.py          # exporte la classe Plugin, rien d'autre
+├── plugin.py            # obligatoire : Plugin[Config] avec config_model et async setup(context)
+├── interfaces/
+│   ├── tools.py         # obligatoire : une classe Tool[Args] par outil
+│   └── cli.py           # commandes annexes (appairage, connexion…)
+├── config.py            # section [plugins.<nom>] + noms des secrets
+├── domain.py            # entités du plugin
+├── application.py       # opérations du plugin + contrats attendus de l'extérieur
+└── infrastructure.py    # API externe ↔ domaine, implémente ces contrats
 ```
 
-1. Créer le paquet avec les couches nécessaires. Seuls `plugin.py` et `tools.py` sont
-   obligatoires. `setup(context)` reçoit `context.config` (sa section d'`eva.toml`, déjà
+1. Créer le paquet avec les couches nécessaires. Seuls `plugin.py` et `interfaces/tools.py`
+   sont obligatoires. `setup(context)` reçoit `context.config` (sa section d'`eva.toml`, déjà
    validée), `context.secrets` et `context.resources` (ressources à fermer à l'arrêt). Il
    renvoie les outils, ou lève `PluginUnavailable`.
 2. L'ajouter à `PLUGINS` dans [`plugins/registry.py`](src/eva/plugins/registry.py)
@@ -83,9 +88,10 @@ Exemples : [`plugins/clock/`](src/eva/plugins/clock/) (minimal),
 
 ### Ajouter un fournisseur de LLM
 
-Une classe qui implémente `LLMProvider` ([`llm/provider.py`](src/eva/llm/provider.py)) dans
-`llm/providers/`, avec sa configuration (section `[llm.<nom>]`), plus une branche dans
-[`llm/factory.py`](src/eva/llm/factory.py).
+Une classe qui implémente le contrat `LLMProvider`
+([`application/llm.py`](src/eva/application/llm.py)) dans `infrastructure/llm/`, avec sa
+configuration (section `[llm.<nom>]`), plus une branche dans
+[`infrastructure/llm/factory.py`](src/eva/infrastructure/llm/factory.py).
 
 ## Prérequis
 

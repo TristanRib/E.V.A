@@ -7,8 +7,8 @@ import pytest
 from eva.config import Secrets
 from eva.plugins import PluginContext, PluginUnavailable
 from eva.plugins.hue import HuePlugin
-from eva.plugins.hue.client import HueTransport
 from eva.plugins.hue.config import HomeConfig, HueConfig, key_secret_name
+from eva.plugins.hue.infrastructure import HueTransport
 from fakes_hue import FakeTransport, chalet_bridge, main_bridge
 
 MAISON = HomeConfig(name="Maison", bridge_ip="10.0.0.1")

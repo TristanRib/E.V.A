@@ -8,11 +8,11 @@ from contextlib import AsyncExitStack
 
 from pydantic import ValidationError
 
-from eva.agent import Agent, Conversation, LoggingSink, Toolbox, build_system_prompt
+from eva.application import Agent, Conversation, LoggingSink, Toolbox, build_system_prompt
 from eva.config import EvaSettings, Secrets, config_path
 from eva.domain import ConfigurationError
+from eva.infrastructure.llm import create_provider
 from eva.interfaces import CliInterface
-from eva.llm import create_provider
 from eva.plugins import load_plugins
 
 
@@ -29,6 +29,9 @@ async def run() -> None:
         level=settings.log_level,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+    # Une ligne par requête HTTP noierait les journaux utiles ; visibles en DEBUG seulement.
+    if settings.log_level != "DEBUG":
+        logging.getLogger("httpx").setLevel(logging.WARNING)
 
     async with AsyncExitStack() as resources:
         resources.push_async_callback(llm.aclose)

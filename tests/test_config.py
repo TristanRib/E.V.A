@@ -9,18 +9,18 @@ user_name = "Alice"
 log_level = "info"
 
 [llm]
-provider = "ollama"
+provider = "fournisseur"
 model = "petit-modele"
 
-[llm.ollama]
-host = "http://ailleurs:11434"
+[llm.fournisseur]
+url = "http://ailleurs:1234"
 
 [plugins]
-enabled = ["clock"]
+enabled = ["exemple"]
 
-[[plugins.hue.homes]]
-name = "Maison"
-bridge_ip = "192.168.1.10"
+[[plugins.exemple.comptes]]
+nom = "Principal"
+identifiant = "alice"
 """
 
 
@@ -39,16 +39,16 @@ def test_reads_core_settings_from_toml(config_file: Path) -> None:
 
     assert settings.user_name == "Alice"
     assert settings.log_level == "INFO"
-    assert settings.llm.provider == "ollama"
-    assert settings.plugins.enabled == ["clock"]
+    assert settings.llm.provider == "fournisseur"
+    assert settings.plugins.enabled == ["exemple"]
 
 
 def test_component_sections_stay_raw(config_file: Path) -> None:
     settings = EvaSettings()
 
-    assert settings.llm.section("ollama") == {"host": "http://ailleurs:11434"}
-    assert settings.plugins.section("hue") == {
-        "homes": [{"name": "Maison", "bridge_ip": "192.168.1.10"}]
+    assert settings.llm.section("fournisseur") == {"url": "http://ailleurs:1234"}
+    assert settings.plugins.section("exemple") == {
+        "comptes": [{"nom": "Principal", "identifiant": "alice"}]
     }
     assert settings.plugins.section("absent") == {}
 
@@ -63,8 +63,8 @@ def test_environment_overrides_toml_without_erasing_siblings(
 
     assert settings.log_level == "DEBUG"
     assert settings.llm.model == "autre-modele"
-    assert settings.llm.provider == "ollama"
-    assert settings.llm.section("ollama") == {"host": "http://ailleurs:11434"}
+    assert settings.llm.provider == "fournisseur"
+    assert settings.llm.section("fournisseur") == {"url": "http://ailleurs:1234"}
 
 
 def test_missing_file_gives_defaults(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -80,13 +80,13 @@ def test_secrets_prefer_environment_over_dotenv(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     dotenv = tmp_path / ".env"
-    dotenv.write_text("HUE_KEY_MAISON=depuis-fichier\nVIDE=\nAUTRE=fichier\n", encoding="utf-8")
+    dotenv.write_text("API_KEY=depuis-fichier\nVIDE=\nAUTRE=fichier\n", encoding="utf-8")
     monkeypatch.setenv("AUTRE", "environnement")
 
     secrets = Secrets.load(dotenv)
 
-    assert secrets.get("HUE_KEY_MAISON") is not None
-    assert secrets.get("HUE_KEY_MAISON").get_secret_value() == "depuis-fichier"  # type: ignore[union-attr]
+    assert secrets.get("API_KEY") is not None
+    assert secrets.get("API_KEY").get_secret_value() == "depuis-fichier"  # type: ignore[union-attr]
     assert secrets.get("AUTRE").get_secret_value() == "environnement"  # type: ignore[union-attr]
     assert secrets.get("VIDE") is None
     assert secrets.get("INCONNU") is None

@@ -1,7 +1,7 @@
 """Traduction entre le JSON du bridge et le domaine Hue."""
 
-from eva.plugins.hue.client import HueClient, change_payload
 from eva.plugins.hue.domain import WHOLE_HOME, Group, LightChange, WhiteTemperature, XyColor
+from eva.plugins.hue.infrastructure import HueClient, change_payload
 from fakes_hue import main_bridge
 
 

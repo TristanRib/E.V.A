@@ -2,20 +2,20 @@
 
 from pydantic import ValidationError
 
+from eva.application.llm import LLMProvider
 from eva.config import LlmSettings
 from eva.domain import ConfigurationError
-from eva.llm.provider import LLMProvider
 
 
 def create_provider(settings: LlmSettings) -> LLMProvider:
     """Instancie le fournisseur choisi par `[llm] provider`.
 
-    Ajouter un fournisseur = une implémentation de `LLMProvider` dans `providers/`
+    Ajouter un fournisseur = une implémentation de `LLMProvider` dans ce paquet
     + une branche ici.
     """
     match settings.provider:
         case "ollama":
-            from eva.llm.providers.ollama import DEFAULT_MODEL, OllamaConfig, OllamaProvider
+            from eva.infrastructure.llm.ollama import DEFAULT_MODEL, OllamaConfig, OllamaProvider
 
             try:
                 config = OllamaConfig.model_validate(settings.section("ollama"))

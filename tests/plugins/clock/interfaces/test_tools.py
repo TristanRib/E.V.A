@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from eva.domain import NoArgs
-from eva.plugins.clock.tools import ClockTool, format_datetime
+from eva.plugins.clock.interfaces.tools import ClockTool, format_datetime
 
 
 def test_format_datetime_in_french_with_weekday() -> None:

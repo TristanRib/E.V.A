@@ -78,6 +78,13 @@ class BridgeState:
     def target_names(self) -> list[str]:
         return [g.name for g in self.groups] + [light.name for light in self.lights.values()]
 
+    def area_names(self) -> list[str]:
+        """Pièces et zones, celles qui peuvent porter des scènes (avec ou sans scène)."""
+        return [g.name for g in self.groups if g.kind != "home"]
+
+    def scenes_of(self, group_name: str) -> list[Scene]:
+        return [s for s in self.scenes if normalize(s.group_name) == normalize(group_name)]
+
     def lit_count(self, group: Group) -> int:
         return sum(self.lights[i].on for i in group.light_ids)
 
@@ -112,7 +119,7 @@ PALETTE: dict[str, Color] = {
     "violet": XyColor(0.2725, 0.1096),
     "rose": XyColor(0.4149, 0.1776),
 }
-"""Couleurs nommées : un petit modèle choisit mieux dans une liste qu'en inventant un code."""
+"""Couleurs nommées disponibles."""
 
 
 @dataclass(frozen=True, slots=True)

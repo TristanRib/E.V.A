@@ -1,4 +1,4 @@
-"""Plugin Philips Hue : assemble client, maisons et outils. Aucune logique ici."""
+"""Plugin Philips Hue : assemble bridges, maisons et outils. Aucune logique ici."""
 
 import asyncio
 import logging
@@ -7,11 +7,11 @@ from typing import Any
 
 from eva.domain import Tool
 from eva.plugins.base import Plugin, PluginContext, PluginUnavailable
-from eva.plugins.hue.client import HttpTransport, HueClient, HueTransport
+from eva.plugins.hue.application import HueHome, HueHomes
 from eva.plugins.hue.config import HomeConfig, HueConfig, key_secret_name
 from eva.plugins.hue.domain import HueError
-from eva.plugins.hue.service import HueHome, HueHomes
-from eva.plugins.hue.tools import create_hue_tools
+from eva.plugins.hue.infrastructure import HttpTransport, HueClient, HueTransport
+from eva.plugins.hue.interfaces.tools import create_hue_tools
 
 logger = logging.getLogger(__name__)
 

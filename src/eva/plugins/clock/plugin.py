@@ -5,7 +5,7 @@ from typing import Any
 
 from eva.domain import Tool
 from eva.plugins.base import NoConfig, Plugin, PluginContext
-from eva.plugins.clock.tools import ClockTool
+from eva.plugins.clock.interfaces.tools import ClockTool
 
 
 class ClockPlugin(Plugin[NoConfig]):

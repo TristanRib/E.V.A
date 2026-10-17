@@ -6,8 +6,8 @@ import pytest
 from pydantic import ValidationError
 
 from eva.domain import Tool, ToolEffect
-from eva.plugins.hue.service import HueHomes
-from eva.plugins.hue.tools import create_hue_tools
+from eva.plugins.hue.application import HueHomes
+from eva.plugins.hue.interfaces.tools import create_hue_tools
 from fakes_hue import chalet_bridge, connect, main_bridge
 
 
