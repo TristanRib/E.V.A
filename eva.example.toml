@@ -26,10 +26,19 @@ keep_alive = "30m"
 
 [plugins]
 # Plugins activés ; supprimer la ligne pour les activer tous
-enabled = ["clock", "hue"]
+enabled = ["clock", "hue", "routines"]
 
 # Une table par maison Hue. `uv run eva-hue-pair --name <Nom>` l'ajoute automatiquement,
 # avec sa clé dans .env (HUE_KEY_<NOM>).
 [[plugins.hue.homes]]
 name = "Maison"
 bridge_ip = "192.168.1.10"
+
+# Routines : suites d'actions lancées par leur nom. La description aide E.V.A à les
+# reconnaître ; les étapes appellent des outils, dans l'ordre.
+[[plugins.routines.routine]]
+name = "Apocalypse"
+description = "toutes les lumières en rouge"
+steps = [
+  { tool = "hue_set_lights", args = { target = "Toute la maison", color = "rouge" } },
+]

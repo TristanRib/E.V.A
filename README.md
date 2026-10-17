@@ -84,7 +84,8 @@ src/eva/plugins/<nom>/
 3. Écrire ses tests dans `tests/plugins/<nom>/`, une suite par couche.
 
 Exemples : [`plugins/clock/`](src/eva/plugins/clock/) (minimal),
-[`plugins/hue/`](src/eva/plugins/hue/) (toutes les couches).
+[`plugins/hue/`](src/eva/plugins/hue/) (toutes les couches),
+[`plugins/routines/`](src/eva/plugins/routines/) (utilise les outils des autres plugins).
 
 ### Ajouter un fournisseur de LLM
 
@@ -143,6 +144,21 @@ Les noms des lampes, pièces, zones et scènes de toutes les maisons sont lus au
 LLM ne peut choisir que parmi des noms existants (casse et accents tolérés). Avec plusieurs
 maisons, la maison n'est à préciser que si le nom existe dans plusieurs d'entre elles. Une
 maison injoignable est ignorée, les autres restent utilisables.
+
+### Plugin routines
+
+Une routine est une suite d'actions lancée par son nom (« Lance la routine Apocalypse »).
+Chaque étape appelle un outil d'E.V.A ; toutes sont vérifiées avant d'en exécuter une seule,
+puis s'exécutent dans l'ordre.
+
+```toml
+[[plugins.routines.routine]]
+name = "Apocalypse"
+description = "toutes les lumières en rouge"   # montrée au LLM pour reconnaître la routine
+steps = [
+  { tool = "hue_set_lights", args = { target = "Toute la maison", color = "rouge" } },
+]
+```
 
 ## Configuration
 

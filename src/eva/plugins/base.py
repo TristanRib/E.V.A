@@ -8,6 +8,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from eva.application import ToolRunner
 from eva.config import Secrets
 from eva.domain import EvaError, Tool
 
@@ -35,6 +36,8 @@ class PluginContext[ConfigT: BaseModel]:
     secrets: Secrets
     resources: AsyncExitStack
     """Ressources à libérer à l'arrêt (connexions…)."""
+    tools: ToolRunner
+    """Exécution des outils de tous les plugins, disponible une fois E.V.A démarrée."""
 
 
 class Plugin[ConfigT: BaseModel](ABC):

@@ -121,5 +121,5 @@ class ConfiguredPlugin(Plugin[ValueConfig]):
 
     async def setup(self, context: PluginContext[ValueConfig]) -> Sequence[Tool[Any]]:
         tool = EchoTool()
-        tool.name = f"echo_{context.config.value}"  # type: ignore[misc]
+        tool.name = f"echo_{context.config.value}"
         return [tool]

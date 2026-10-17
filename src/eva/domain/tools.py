@@ -45,11 +45,12 @@ class Tool[ArgsT: BaseModel](ABC):
     """Capacité d'E.V.A que le LLM peut déclencher.
 
     Une sous-classe définit `name`, `description`, `effect`, `args_model` et `run()`.
-    `args_model` peut être fixé sur la classe ou construit dans `__init__` (choix dynamiques).
+    `name`, `description` et `args_model` peuvent être fixés sur la classe ou dans
+    `__init__` (valeurs connues seulement à l'exécution) ; `effect` est fixé sur la classe.
     """
 
-    name: ClassVar[str]
-    description: ClassVar[str]
+    name: str
+    description: str
     effect: ClassVar[ToolEffect]
     args_model: type[ArgsT]
 

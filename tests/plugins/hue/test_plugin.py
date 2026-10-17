@@ -4,6 +4,7 @@ from contextlib import AsyncExitStack
 
 import pytest
 
+from eva.application import Toolbox
 from eva.config import Secrets
 from eva.plugins import PluginContext, PluginUnavailable
 from eva.plugins.hue import HuePlugin
@@ -25,7 +26,7 @@ def plugin_with(bridges: dict[str, FakeTransport]) -> HuePlugin:
 
 async def setup(plugin: HuePlugin, config: HueConfig, secrets: Secrets = KEYS) -> list[str]:
     async with AsyncExitStack() as resources:
-        tools = await plugin.setup(PluginContext(config, secrets, resources))
+        tools = await plugin.setup(PluginContext(config, secrets, resources, Toolbox()))
     return [tool.name for tool in tools]
 
 

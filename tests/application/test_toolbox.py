@@ -2,9 +2,9 @@ import asyncio
 
 import pytest
 
-from eva.application import Toolbox
-from eva.domain import EvaError, NoArgs, Tool, ToolEffect, ToolError
-from fakes import EchoTool, FailingTool, call
+from eva.application import DeferredToolRunner, Toolbox
+from eva.domain import EvaError, NoArgs, Tool, ToolCall, ToolEffect, ToolError
+from fakes import EchoArgs, EchoTool, FailingTool, call
 
 
 async def test_executes_tool_with_validated_arguments() -> None:
@@ -61,7 +61,7 @@ async def test_reads_run_in_parallel_and_keep_order() -> None:
         args_model = NoArgs
 
         def __init__(self, name: str) -> None:
-            self.name = name  # type: ignore[misc]
+            self.name = name
 
         async def run(self, args: NoArgs) -> str:
             started.append(self.name)
@@ -85,7 +85,7 @@ async def test_actions_run_one_by_one_in_requested_order() -> None:
         args_model = NoArgs
 
         def __init__(self, name: str, delay: float) -> None:
-            self.name = name  # type: ignore[misc]
+            self.name = name
             self._delay = delay
 
         async def run(self, args: NoArgs) -> str:
@@ -98,6 +98,73 @@ async def test_actions_run_one_by_one_in_requested_order() -> None:
     await toolbox.execute_all([call("first"), call("second")])
 
     assert applied == ["first", "second"]
+
+
+async def test_identical_calls_in_one_reply_run_once() -> None:
+    applied: list[int] = []
+
+    class Counter(Tool[EchoArgs]):
+        name = "count"
+        description = "Compte."
+        effect = ToolEffect.ACTION
+        args_model = EchoArgs
+
+        async def run(self, args: EchoArgs) -> str:
+            applied.append(args.value)
+            return "ok"
+
+    calls = [ToolCall(f"c{i}", "count", {"value": v}) for i, v in enumerate([1, 1, 2, 1])]
+
+    results = await Toolbox([Counter()]).execute_all(calls)
+
+    assert applied == [1, 2]
+    assert [r.call_id for r in results] == ["c0", "c1", "c2", "c3"]
+    assert [r.is_error for r in results] == [False, True, False, True]
+    assert "Doublon" in results[1].content
+
+
+async def test_too_many_distinct_calls_execute_nothing() -> None:
+    applied: list[int] = []
+
+    class Counter(Tool[EchoArgs]):
+        name = "count"
+        description = "Compte."
+        effect = ToolEffect.ACTION
+        args_model = EchoArgs
+
+        async def run(self, args: EchoArgs) -> str:
+            applied.append(args.value)
+            return "ok"
+
+    calls = [ToolCall(f"c{i}", "count", {"value": i}) for i in range(4)]
+
+    results = await Toolbox([Counter()], max_calls_per_reply=3).execute_all(calls)
+
+    assert applied == []
+    assert len(results) == 4
+    assert all(r.is_error and "Aucun n'a été exécuté" in r.content for r in results)
+
+
+def test_check_validates_without_executing() -> None:
+    toolbox = Toolbox([EchoTool()])
+
+    assert toolbox.check(call("echo", value=1)) is None
+    assert toolbox.check(call("echo", value="abc")) == "Arguments invalides : value : " + (
+        "Input should be a valid integer, unable to parse string as an integer"
+    )
+    assert toolbox.check(call("nope")) == "Outil inconnu : nope"
+
+
+async def test_deferred_runner_works_once_bound() -> None:
+    runner = DeferredToolRunner()
+
+    with pytest.raises(EvaError):
+        runner.check(call("echo", value=1))
+
+    runner.bind(Toolbox([EchoTool()]))
+
+    assert runner.check(call("echo", value=1)) is None
+    assert (await runner.execute(call("echo", value=1))).content == "1"
 
 
 def test_duplicate_tool_names_are_rejected() -> None:

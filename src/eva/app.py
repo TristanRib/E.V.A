@@ -8,7 +8,14 @@ from contextlib import AsyncExitStack
 
 from pydantic import ValidationError
 
-from eva.application import Agent, Conversation, LoggingSink, Toolbox, build_system_prompt
+from eva.application import (
+    Agent,
+    Conversation,
+    DeferredToolRunner,
+    LoggingSink,
+    Toolbox,
+    build_system_prompt,
+)
 from eva.config import EvaSettings, Secrets, config_path
 from eva.domain import ConfigurationError
 from eva.infrastructure.llm import create_provider
@@ -35,11 +42,14 @@ async def run() -> None:
 
     async with AsyncExitStack() as resources:
         resources.push_async_callback(llm.aclose)
-        tools = await load_plugins(settings.plugins, Secrets.load(), resources)
+        tools_runner = DeferredToolRunner()
+        tools = await load_plugins(settings.plugins, Secrets.load(), resources, tools_runner)
+        toolbox = Toolbox(tools)
+        tools_runner.bind(toolbox)
 
         agent = Agent(
             llm,
-            Toolbox(tools),
+            toolbox,
             build_system_prompt(settings.user_name),
             Conversation(max_turns=settings.history_turns),
             observers=[LoggingSink()],

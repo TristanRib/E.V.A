@@ -11,6 +11,7 @@ from typing import Any, cast
 
 from pydantic import ValidationError
 
+from eva.application import ToolRunner
 from eva.config import PluginsSettings, Secrets
 from eva.domain import Tool
 from eva.plugins.base import Plugin, PluginContext, PluginUnavailable
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 PLUGINS: Mapping[str, str] = {
     "clock": "eva.plugins.clock:ClockPlugin",
     "hue": "eva.plugins.hue:HuePlugin",
+    "routines": "eva.plugins.routines:RoutinesPlugin",
 }
 """Nom du plugin → `module:Classe`. L'import n'a lieu qu'au chargement, s'il est activé."""
 
@@ -28,6 +30,7 @@ async def load_plugins(
     settings: PluginsSettings,
     secrets: Secrets,
     resources: AsyncExitStack,
+    tools_runner: ToolRunner,
     *,
     available: Mapping[str, str] = PLUGINS,
 ) -> list[Tool[Any]]:
@@ -49,7 +52,8 @@ async def load_plugins(
         try:
             plugin = _instantiate(available[name])
             config = plugin.config_model.model_validate(settings.section(name))
-            tools.extend(await plugin.setup(PluginContext(config, secrets, resources)))
+            context = PluginContext(config, secrets, resources, tools_runner)
+            tools.extend(await plugin.setup(context))
         except PluginUnavailable as e:
             logger.warning("Plugin « %s » indisponible : %s", name, e)
         except ValidationError as e:

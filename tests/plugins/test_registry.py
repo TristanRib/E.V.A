@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 
+from eva.application import Toolbox
 from eva.config import PluginsSettings, Secrets
 from eva.domain import Tool
 from eva.plugins import PLUGINS, load_plugins
@@ -21,7 +22,7 @@ FAKES = {
 
 async def load(settings: PluginsSettings) -> list[Tool[Any]]:
     async with AsyncExitStack() as resources:
-        return await load_plugins(settings, Secrets({}), resources, available=FAKES)
+        return await load_plugins(settings, Secrets({}), resources, Toolbox(), available=FAKES)
 
 
 async def test_failing_plugins_are_skipped_without_stopping_others(

@@ -24,7 +24,7 @@ from eva.application.llm import (
     describe_tool,
 )
 from eva.application.prompt import build_system_prompt
-from eva.application.toolbox import Toolbox
+from eva.application.toolbox import DeferredToolRunner, Toolbox, ToolRunner
 
 __all__ = [
     "Agent",
@@ -32,6 +32,7 @@ __all__ = [
     "AgentEvent",
     "Completion",
     "Conversation",
+    "DeferredToolRunner",
     "EventSink",
     "LLMError",
     "LLMProvider",
@@ -41,6 +42,7 @@ __all__ = [
     "TextDelta",
     "ToolCallFinished",
     "ToolCallStarted",
+    "ToolRunner",
     "Toolbox",
     "TurnFinished",
     "build_system_prompt",
